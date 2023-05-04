@@ -1,0 +1,271 @@
+---
+title: "Evidencia 2"
+author: "Iker Rolando Casillas Parra | A01641047"
+date: "2023-05-04"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+- - -
+
+# Análisis de 20 virus parecidos al SARS-CoV-2
+  
+  - - -
+
+| Virus             | Clave Genbank    |
+|-------------------|------------------|
+| SARS-CoV-2 Alpha  | MT873893         |
+| SARS-CoV-2 Beta   | OM725650         |
+| SARS-CoV-2 Gamma  | MT835383         |
+| SARS-CoV-2 Delta  | MT439595         |
+| SARS-CoV-2 Omicron| OM725268         |
+| HCoV-NL63 v1      | KT359907         |
+| HCoV-NL63 v2      | MZ682627         |
+| HCoV-NL63 v3      | DQ462754         |
+| HCoV-NL63 v4      | FJ656171         |
+| MERS-CoV v1       |  MH734115        |
+| MERS-CoV v2       | MG923481         |
+| MERS-CoV v3       | MG923466         |
+| SARS-CoV v1       | NC_004718        |
+| SARS-CoV v2       | FJ588686         |
+| HCoV-229E v1      | KU291448         |
+| HCoV-229E v2      | AB691764         |
+| HCoV-HKU1 v1      | MH940245         |
+| HCoV-HKU1 v2      | HM034837         |
+| HCoV-OC43 v1      | KU131570         |
+| HCoV-OC43 v2      | MK303622         |
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+```
+
+## Librerias
+
+```{r warning=FALSE, cache=FALSE, message=FALSE}
+#if (!require("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+#BiocManager::install("Biostrings")
+#BiocManager::install("ggtree")
+#BiocManager::install("DECIPHER")
+#BiocManager::install("ggmsa")
+
+
+library(ape)
+library(phytools)
+library(Biostrings)
+library(seqinr)
+library(adegenet)
+library(ggtree)
+library(DECIPHER)
+library(viridis)
+library(ggplot2)
+```
+
+```{r warning=FALSE, cache=FALSE, message=FALSE}
+# install.packages("seqinr")
+# install.packages("tidyverse")
+# install.packages("scales")         utilizada unicamente para representacion de porcentajes
+library(seqinr)
+library(ggplot2)
+library(scales)
+```
+
+
+# Guardar nombres de variantes
+```{r}
+
+virus_key <- c("MT873893", "OM725650", "MT835383", "MT439595", "OM725268", "KT359907", "MZ682627", "DQ462754", "FJ656171", "MH734115", "MG923481", "MG923466", "NC_004718", "FJ588686", "KU291448", "AB691764", "MH940245", "HM034837", "KU131570", "MK303622")
+
+
+```
+
+
+Obtener las secuencias
+```{r}
+virus_sequences <- read.GenBank(virus_key)
+```
+
+Estructura del DNABin:
+```{r}
+str(virus_sequences)
+```
+
+Veamos los atributos de las secuencias, es decir su detalle descriptivo
+```{r}
+attributes(virus_sequences)
+names(virus_sequences)
+attr(virus_sequences, "species")
+```
+
+
+Concatenar en un archivo todas las secuencias:
+```{r}
+write.dna(virus_sequences,  file ="virus_seqs.fasta", format = "fasta", append =
+FALSE, nbcol = 6, colsep = " ", colw = 10)
+```
+
+## Calcular longitud de cada una de las secuencias
+
+```{r}
+virus_sequences <- read.fasta("virus_seqs.fasta")
+virus = names(virus_sequences)
+for (i in 1:length(virus_sequences)){ 
+  print(paste(virus[i],length(virus_sequences[[i]]),sep="= "))
+}
+```
+## Comparación de nucleótidos de los virus parecidos al SARS-CoV-2
+
+```{r}
+set = rbind()
+setA = rbind()
+setC = rbind()
+setG = rbind()
+setT = rbind()
+
+# Organizar nucleotidos para plot
+
+for(i in 1:20){
+  s=seqinr::count(virus_sequences[[i]],1)
+  set=cbind(set,(s))
+  setA = cbind(setA,s[1])
+  setC = cbind(setC,s[2])
+  setG = cbind(setG,s[3])
+  setT = cbind(setT,s[4])
+}
+```
+
+
+```{r}
+
+par(oma = c(1, 2, 1, 4)) # Margenes exteriores
+barp=barplot(set,main = "Comparación de bases de ADN",legend=T,col=c("#ff8000","#90b1db","#02c028","#79828d"), names.arg=virus,las=2, font.axis = 2)
+
+```
+
+
+Cargar secuencias
+```{r}
+virus_seq_no_alineadas <- readDNAStringSet("virus_seqs.fasta", format = "fasta")
+virus_seq_no_alineadas
+```
+
+
+
+Alineamiento de las secuencias:
+
+```{r eval = FALSE}
+virus_seq_no_alineadas <- OrientNucleotides(virus_seq_no_alineadas)
+
+virus_align_seqs <- AlignSeqs(virus_seq_no_alineadas)
+```
+
+```{r include = FALSE}
+virus_seq_no_alineadas <- OrientNucleotides(virus_seq_no_alineadas)
+
+virus_align_seqs <- AlignSeqs(virus_seq_no_alineadas)
+```
+
+
+
+Visualizar el resultado del alineamiento:
+```{r}
+BrowseSeqs(virus_align_seqs, highlight=0)
+```
+
+Guardar el resultado:
+```{r}
+writeXStringSet(virus_align_seqs, file = "virus_align_seq.fasta")
+```
+
+Obtener el nuevo archivo:
+```{r eval = FALSE}
+virus_aligned <- read.alignment("virus_align_seq.fasta", format = "fasta") 
+virus_aligned
+```
+
+```{r include = FALSE}
+virus_aligned <- read.alignment("virus_align_seq.fasta", format = "fasta") 
+virus_aligned
+```
+
+
+Crear una matriz de distancia:
+```{r}
+matriz_distancia <- dist.alignment(virus_aligned, matrix = "similarity")
+```
+
+## Arbol filogenético
+
+Creación del árbol con el paquete ape:
+```{r}
+virus_filogenetico <- njs(matriz_distancia)
+class(virus_filogenetico)
+
+```
+
+
+Plot utilizando ggtree que es parte de ggplot:
+
+
+```{r warning=FALSE, cache=FALSE, message=FALSE}
+plot_filogenetico <- ggtree(virus_filogenetico ) + geom_tiplab()
+plot_filogenetico <- plot_filogenetico + ggtitle("Análisis jerárquico global de virus parecidos a SARS-CoV-2")
+plot_filogenetico
+
+
+```
+
+Visualiza el alineamiento de las secuencias:
+```{r}
+
+library(ggmsa)
+ggmsa(virus_align_seqs, 320, 360, color = "Shapely_AA", show.legend = TRUE)
+
+```
+
+
+## Analisis / Conclusión
+En el análisis del conteo de nucleótidos, a simple vista no se puede notar una gran diferencia entre las variantes de SARS-CoV-2 y los demás coronavirus "similares". Esto nos pone a pensar un poco en sobre cómo los pequeños cambios en una secuencia de ADN pueden tener un cambio tan grande en el impacto y comportamiento del virus.
+
+En cuanto al análisis jerárquico del árbol filogenético, las agrupaciones fueron las esperadas. Interesante el notar que los virus que se muestran como "padres" principales son las variantes de SARS-CoV-2 y SARS-CoV-1.
+
+
+## Citar paquetes de R
+
+citation("packagename")
+
+```{r}
+citation("dplyr")
+citation("ggplot2")
+citation("ape")
+citation("phytools")
+citation("Biostrings")
+citation("seqinr")
+citation("adegenet")
+citation("ggtree")
+citation("DECIPHER")
+citation("viridis")
+```
+
+
+## Bibliografía
+
+
+Clasificaciones y definiciones de las variantes del SARS-CoV-2. (30 de marzo de 2023). Organización Mundial de la Salud. https://www.who.int/es/activities/tracking-SARS-CoV-2-variants
+
+COVID-19 Dashboard. (10 de marzo de 2023). Johns Hopkins. https://coronavirus.jhu.edu/map.html
+
+COVID-19 Tablero México. (30 de abril de 2023). Gobierno de México. https://datos.covid-19.conacyt.mx/
+
+Share of SARS-CoV-2 sequences that are the omicron variant. (24 de abril de 2023). Our World in Data. 
+https://ourworldindata.org/grapher/covid-cases-omicron?tab=chart
+
+Shahrajabian MH, Sun W, Cheng Q. Product of natural evolution (SARS, MERS, and SARS-CoV-2); deadly diseases, from SARS to SARS-CoV-2. Hum Vaccin Immunother. 2021 Jan 2;17(1):62-83. doi: 10.1080/21645515.2020.1797369. Epub 2020 Aug 12. PMID: 32783700; PMCID: PMC7872062.
+
+Decaro N, Lorusso A. Novel human coronavirus (SARS-CoV-2): A lesson from animal coronaviruses. Vet Microbiol. 2020 May;244:108693. doi: 10.1016/j.vetmic.2020.108693. Epub 2020 Apr 14. PMID: 32402329; PMCID: PMC7195271.
+
+
+
